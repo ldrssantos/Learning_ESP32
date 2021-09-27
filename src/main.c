@@ -13,13 +13,17 @@
 
 #include "driver/timer.h"
 
+#include <driver/adc.h>
+
+
 //Global defines
 #define ESP32_BLINK_GPIO GPIO_NUM_13
-#define GREEN_LED_GPIO GPIO_NUM_19
 #define RED_LED_GPIO GPIO_NUM_21
 
-#define TACTILE_GPIO GPIO_NUM_22
+#define ADC_POT ADC1_CHANNEL_4
+#define GREEN_LED_PWM_GPIO GPIO_NUM_19
 
+#define TACTILE_GPIO GPIO_NUM_22
 
 #define TIMER_DIVIDER (16)
 #define TIMER_SCALE (TIMER_BASE_CLK / TIMER_DIVIDER)
@@ -28,6 +32,8 @@
 uint32_t counter = 0;
 uint32_t led_flag = 0;
 bool led_ctrl = 0;
+
+uint8_t Counter_values_options[4] = {5, 10, 15, 20};
 
 // TIMER Structure for our code
 typedef struct{
@@ -50,7 +56,11 @@ typedef struct{
 static void IRAM_ATTR gpio_isr_handler(void *arg){
     if (TACTILE_GPIO == (uint32_t) arg){
         if (gpio_get_level(TACTILE_GPIO) == 0){
-            counter++;
+            if (counter == (sizeof(Counter_values_options) - 1)){
+                counter = 0;
+            } else {
+                counter++;
+            }
         }
         led_flag = 1;
     }
@@ -188,6 +198,14 @@ void USER_TIMER_INIT(void){
     timer_start(TIMER_GROUP_0, TIMER_0);
 }
 
+/**
+ * Timer initialize
+ */
+void USER_TIMER_INIT(void){
+    adc1_config_width(ADC_WIDTH_BIT_12);
+    adc1_config_channel_atten(ADC1_CHANNEL_0,ADC_ATTEN_DB_0);
+    int val = adc1_get_raw(ADC1_CHANNEL_0);
+}
 
 /**
  *  Main Application execution 
@@ -205,6 +223,8 @@ void app_main(void){
         vTaskDelay(1000 / portTICK_PERIOD_MS);
         if (led_flag){
             printf("counter = %d\n", counter);
+            printf("Counter_values_options = %d\n", Counter_values_options[counter]);
+            
             led_flag = 0;
         }
     }
