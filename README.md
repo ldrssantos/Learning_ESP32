@@ -1,4 +1,4 @@
-# Studying C language project design flow with PlatformIO IDE for VSCode and Espressif device (ESP32 family)
+# Studying C language project design flow with PlatformIO IDE, ESP-IDF API on VSCode
 
 ## Section 1 
 Installing and configuring design environment <br />
