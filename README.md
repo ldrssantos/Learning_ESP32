@@ -1,4 +1,4 @@
-# Studying C language project design flow with PlatformIO IDE, ESP-IDF API on VSCode
+# Studying C language project design flow with PlatformIO IDE, <br /> ESP-IDF API on VSCode
 
 ## Section 1 
 Installing and configuring design environment <br />
