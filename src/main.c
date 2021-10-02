@@ -15,18 +15,23 @@
 
 #include <driver/adc.h>
 
+#include "driver/ledc.h"
+
+#include "math.h"
 
 //Global defines
 #define ESP32_BLINK_GPIO GPIO_NUM_13
 #define RED_LED_GPIO GPIO_NUM_21
+#define GREEN_LED_PWM_GPIO GPIO_NUM_19
 
 #define ADC_POT ADC1_CHANNEL_4
-#define GREEN_LED_PWM_GPIO GPIO_NUM_19
 
 #define TACTILE_GPIO GPIO_NUM_22
 
 #define TIMER_DIVIDER (16)
 #define TIMER_SCALE (TIMER_BASE_CLK / TIMER_DIVIDER)
+
+#define BUFFER_SIZE     1024
 
 //Variables defines
 uint32_t counter = 0;
@@ -109,6 +114,31 @@ void ESP32_IDENTIFY_DEVICE_TYPE(void)
         (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "Embeded" : "External");
 };
 
+/**
+ * ADC configuration and initialize 
+ */
+void USER_ADC_INIT(void)
+{
+    //Setting maximum resolution for adc channel
+    adc1_config_width(ADC_WIDTH_12Bit);
+    //The input voltage of ADC will be attenuated, extending the range of measurement to up to approx. 2600 mV.
+    // (1V input = ADC reading of 1575).
+    adc1_config_channel_atten(ADC_POT, ADC_ATTEN_DB_11);
+};
+
+/**
+ * ADC read value 
+ */
+uint32_t user_adc_read(void)
+{
+    //read voltage level by potenciometer position
+    uint32_t adc_raw_read = adc1_get_raw(ADC_POT); 
+    
+    float adc_voltage_read = adc_raw_read * 0.8;  // adaptacao com fator de escala
+    // Formata mensagem para ser enviada em buffer
+    printf("\nADC RAW: %04d | ADC VOLT: %04.2f mV \n", adc_raw_read, adc_voltage_read);
+    return adc_raw_read;
+};
 
 /**
  * GPIOs configuration and initialize 
@@ -130,7 +160,7 @@ void USER_GPIO_INIT(void)
     gpio_config_t led_user_config = {
         .intr_type = GPIO_INTR_DISABLE,
         .mode = GPIO_MODE_OUTPUT,
-        .pin_bit_mask = (1ULL << ESP32_BLINK_GPIO) | (1ULL << GREEN_LED_GPIO) | (1ULL << RED_LED_GPIO),
+        .pin_bit_mask = (1ULL << ESP32_BLINK_GPIO) | (1ULL << RED_LED_GPIO),
         .pull_down_en = 0
     };
     //initilize tactile button 
@@ -199,13 +229,40 @@ void USER_TIMER_INIT(void){
 }
 
 /**
- * Timer initialize
+ * PWM channel initialize
  */
-void USER_TIMER_INIT(void){
-    adc1_config_width(ADC_WIDTH_BIT_12);
-    adc1_config_channel_atten(ADC1_CHANNEL_0,ADC_ATTEN_DB_0);
-    int val = adc1_get_raw(ADC1_CHANNEL_0);
+void USER_LEDC_INIT_SET(uint32_t adc_raw_read){
+    ledc_timer_config_t ledc_timer = {
+        .duty_resolution = LEDC_TIMER_12_BIT,
+        .freq_hz = 5000,
+        .speed_mode = LEDC_HIGH_SPEED_MODE,
+        .timer_num = LEDC_TIMER_0
+    };
+
+    ledc_timer_config(&ledc_timer);
+
+    ledc_channel_config_t ledc_channel = {
+        .channel = LEDC_CHANNEL_0,
+        .duty = 0,
+        .gpio_num = GREEN_LED_PWM_GPIO,
+        .speed_mode = LEDC_HIGH_SPEED_MODE,
+        .hpoint = 0,
+        .timer_sel = LEDC_TIMER_0
+    };
+
+    ledc_channel_config(&ledc_channel);
+    
+    uint32_t ctrl_value = (adc_raw_read * 100) / 4096; 
+
+    uint32_t duty_value = (ctrl_value * pow(2, ledc_timer.duty_resolution)) / 100;
+
+    ledc_set_duty(ledc_channel.speed_mode, ledc_channel.channel, duty_value);
+
+    ledc_update_duty(ledc_channel.speed_mode, ledc_channel.channel);
+
+    printf("PWM SET: %d \n", ctrl_value);
 }
+
 
 /**
  *  Main Application execution 
@@ -217,6 +274,8 @@ void app_main(void){
 
     USER_TIMER_INIT();
 
+    USER_ADC_INIT();
+
     xTaskCreate(&blink_task, "blink_task", configMINIMAL_STACK_SIZE, NULL, 5, NULL);
 
     while(1) { 
@@ -227,5 +286,9 @@ void app_main(void){
             
             led_flag = 0;
         }
+        
+        uint32_t adc_raw_read = user_adc_read();
+
+        USER_LEDC_INIT_SET(adc_raw_read);
     }
 };

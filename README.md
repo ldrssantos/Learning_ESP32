@@ -1,5 +1,4 @@
-# Studying C language project design flow with PlatformIO IDE for VSCode and Espressif device (ESP32 family)
-
+Studying C language project design flow with PlatformIO IDE, ESP-IDF API on VSCode
 ## Section 1 
 Installing and configuring design environment
 https://platformio.org/install/ide?install=vscode
@@ -28,3 +27,6 @@ LED Control (LEDC)
 https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/peripherals/ledc.html?highlight=pwm
 
 Exercise4 (ESP32-Exercicio-LED-PWM Branch) - Creating PWM setup, function and callback.
+
+The purpose of this activity is to synchronize the value read on the ADC channel in a proportional control of a certain desired parameter.
+Let's assume that the fader axis can rotate from 0 to 180 degrees, and in that sense, 0 degrees will be 0% LED control brightness, and 180 degrees of the fader axis will be 100% LED brightness.
